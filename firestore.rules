@@ -1,0 +1,416 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'kamikazinina66@gmail.com' ||
+        request.auth.token.email == 'chanianina42@gmail.com'
+      );
+    }
+
+    function hasUserProfile() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveTeamMember() {
+      return isBootstrappedAdmin() || (hasUserProfile() && userProfile().active == true);
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (hasUserProfile() && userProfile().active == true && userProfile().role == 'admin');
+    }
+
+    function isAnalyst() {
+      return hasUserProfile() && userProfile().active == true && userProfile().role == 'analyst';
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'assignedSiteId', 'active', 'twoFactorEnabled', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role in ['admin', 'interviewer', 'analyst']
+        && data.active is bool
+        && (!('assignedSiteId' in data.keys()) || (data.assignedSiteId is string && data.assignedSiteId.size() <= 128))
+        && (!('twoFactorEnabled' in data.keys()) || data.twoFactorEnabled is bool)
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidUserDirectory(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'active', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'assignedSiteId', 'active', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role in ['admin', 'interviewer', 'analyst']
+        && data.active is bool
+        && (!('assignedSiteId' in data.keys()) || (data.assignedSiteId is string && data.assignedSiteId.size() <= 128))
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidTeamInvite(data) {
+      return data.keys().hasAll(['email', 'displayName', 'role', 'createdByUid', 'createdAt'])
+        && data.keys().hasOnly(['email', 'displayName', 'role', 'assignedSiteId', 'createdByUid', 'createdAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.role in ['admin', 'interviewer', 'analyst']
+        && (!('assignedSiteId' in data.keys()) || (data.assignedSiteId is string && data.assignedSiteId.size() <= 128))
+        && data.createdByUid is string && data.createdByUid.size() <= 128
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidSite(data) {
+      return data.keys().hasAll(['id', 'name', 'district', 'urbanRural', 'referralContactName', 'referralProtocolEn', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'name', 'district', 'urbanRural', 'referralContactName', 'referralContactPhone', 'referralProtocolEn', 'referralProtocolRw', 'active', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 160
+        && data.district is string && data.district.size() >= 1 && data.district.size() <= 120
+        && data.urbanRural in ['urban', 'peri-urban', 'rural']
+        && data.referralContactName is string && data.referralContactName.size() <= 160
+        && (!('referralContactPhone' in data.keys()) || (data.referralContactPhone is string && data.referralContactPhone.size() <= 64))
+        && data.referralProtocolEn is string && data.referralProtocolEn.size() <= 2000
+        && (!('referralProtocolRw' in data.keys()) || (data.referralProtocolRw is string && data.referralProtocolRw.size() <= 2000))
+        && data.active is bool
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidQuestionnaireVersion(data) {
+      return data.keys().hasAll(['id', 'version', 'titleEn', 'status', 'sections', 'questions', 'createdByUid', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'version', 'titleEn', 'titleRw', 'status', 'sections', 'questions', 'licensedScaleSlots', 'createdByUid', 'createdByName', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.version is int && data.version >= 1
+        && data.titleEn is string && data.titleEn.size() >= 1 && data.titleEn.size() <= 200
+        && (!('titleRw' in data.keys()) || (data.titleRw is string && data.titleRw.size() <= 200))
+        && data.status in ['draft', 'published', 'archived']
+        && data.sections is list && data.sections.size() <= 30
+        && data.questions is list && data.questions.size() <= 150
+        && (!('licensedScaleSlots' in data.keys()) || (data.licensedScaleSlots is list && data.licensedScaleSlots.size() <= 20))
+        && data.createdByUid is string && data.createdByUid.size() <= 128
+        && (!('createdByName' in data.keys()) || (data.createdByName is string && data.createdByName.size() <= 120))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidStudyConfig(data) {
+      return data.keys().hasAll(['targetSampleSize', 'preparednessCutoff', 'strainCutoff', 'cutoffsLocked', 'dataRetentionDays', 'updatedAt'])
+        && data.keys().hasOnly(['targetSampleSize', 'preparednessCutoff', 'strainCutoff', 'cutoffsLocked', 'cutoffChangeLog', 'dataRetentionDays', 'updatedByUid', 'updatedAt'])
+        && data.targetSampleSize is int && data.targetSampleSize >= 30 && data.targetSampleSize <= 50000
+        && data.preparednessCutoff is number && data.preparednessCutoff >= 1 && data.preparednessCutoff <= 5
+        && data.strainCutoff is number && data.strainCutoff >= 1 && data.strainCutoff <= 5
+        && data.cutoffsLocked is bool
+        && (!('cutoffChangeLog' in data.keys()) || (data.cutoffChangeLog is list && data.cutoffChangeLog.size() <= 100))
+        && data.dataRetentionDays is int && data.dataRetentionDays >= 30 && data.dataRetentionDays <= 7300
+        && (!('updatedByUid' in data.keys()) || (data.updatedByUid is string && data.updatedByUid.size() <= 128))
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidResponse(data) {
+      return data.keys().hasAll(['id', 'respondentCode', 'siteId', 'siteName', 'interviewerUid', 'interviewerName', 'questionnaireVersionId', 'questionnaireVersion', 'language', 'consentConfirmed', 'answers', 'derivedScores', 'safetyFlagged', 'durationSeconds', 'completionStatus', 'softDeleted', 'deleteApprovalStatus', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'respondentCode', 'siteId', 'siteName', 'interviewerUid', 'interviewerName', 'questionnaireVersionId', 'questionnaireVersion', 'language', 'consentConfirmed', 'respondentAge', 'guardianConsentConfirmed', 'answers', 'derivedScores', 'safetyFlagged', 'durationSeconds', 'completionStatus', 'softDeleted', 'deleteApprovalStatus', 'deleteReason', 'editHistory', 'createdAt', 'updatedAt', 'syncedAt'])
+        && isValidId(data.id)
+        && data.respondentCode is string && data.respondentCode.size() >= 4 && data.respondentCode.size() <= 32 && data.respondentCode.matches('^DS-[0-9A-Za-z\\-]+$')
+        && isValidId(data.siteId)
+        && data.siteName is string && data.siteName.size() >= 1 && data.siteName.size() <= 160
+        && data.interviewerUid is string && data.interviewerUid.size() >= 1 && data.interviewerUid.size() <= 128
+        && data.interviewerName is string && data.interviewerName.size() >= 1 && data.interviewerName.size() <= 120
+        && isValidId(data.questionnaireVersionId)
+        && data.questionnaireVersion is int && data.questionnaireVersion >= 1
+        && data.language in ['en', 'rw']
+        && data.consentConfirmed is bool
+        && (!('respondentAge' in data.keys()) || (data.respondentAge is int && data.respondentAge >= 12 && data.respondentAge <= 65))
+        && (!('guardianConsentConfirmed' in data.keys()) || data.guardianConsentConfirmed is bool)
+        && data.answers is map
+        && data.derivedScores is map
+        && data.safetyFlagged is bool
+        && data.durationSeconds is int && data.durationSeconds >= 0 && data.durationSeconds <= 86400
+        && data.completionStatus in ['complete', 'partial']
+        && data.softDeleted is bool
+        && data.deleteApprovalStatus in ['none', 'pending', 'approved']
+        && (!('deleteReason' in data.keys()) || (data.deleteReason is string && data.deleteReason.size() <= 500))
+        && (!('editHistory' in data.keys()) || (data.editHistory is list && data.editHistory.size() <= 50))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64
+        && (!('syncedAt' in data.keys()) || (data.syncedAt is string && data.syncedAt.size() <= 64));
+    }
+
+    function isValidResponseTag(data) {
+      return data.keys().hasAll(['responseId', 'themes', 'taggedByUid', 'updatedAt'])
+        && data.keys().hasOnly(['responseId', 'themes', 'aiSuggestedThemes', 'aiReviewStatus', 'notes', 'taggedByUid', 'taggedByName', 'updatedAt'])
+        && isValidId(data.responseId)
+        && data.themes is list && data.themes.size() <= 20
+        && (!('aiSuggestedThemes' in data.keys()) || (data.aiSuggestedThemes is list && data.aiSuggestedThemes.size() <= 20))
+        && (!('aiReviewStatus' in data.keys()) || data.aiReviewStatus in ['none', 'pending_review', 'approved', 'edited'])
+        && (!('notes' in data.keys()) || (data.notes is string && data.notes.size() <= 1000))
+        && data.taggedByUid is string && data.taggedByUid.size() <= 128
+        && (!('taggedByName' in data.keys()) || (data.taggedByName is string && data.taggedByName.size() <= 120))
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidSafetyFlag(data) {
+      return data.keys().hasAll(['id', 'responseId', 'respondentCode', 'siteId', 'siteName', 'interviewerUid', 'interviewerName', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'responseId', 'respondentCode', 'siteId', 'siteName', 'interviewerUid', 'interviewerName', 'status', 'acknowledgedByUid', 'acknowledgedByName', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.responseId)
+        && data.respondentCode is string && data.respondentCode.size() <= 32
+        && isValidId(data.siteId)
+        && data.siteName is string && data.siteName.size() <= 160
+        && data.interviewerUid is string && data.interviewerUid.size() <= 128
+        && data.interviewerName is string && data.interviewerName.size() <= 120
+        && data.status in ['open', 'acknowledged', 'referred']
+        && (!('acknowledgedByUid' in data.keys()) || (data.acknowledgedByUid is string && data.acknowledgedByUid.size() <= 128))
+        && (!('acknowledgedByName' in data.keys()) || (data.acknowledgedByName is string && data.acknowledgedByName.size() <= 120))
+        && (!('notes' in data.keys()) || (data.notes is string && data.notes.size() <= 1000))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'actorUid', 'actorName', 'actorRole', 'action', 'targetType', 'targetId', 'details', 'createdAt'])
+        && data.keys().hasOnly(['id', 'actorUid', 'actorName', 'actorRole', 'action', 'targetType', 'targetId', 'details', 'createdAt'])
+        && isValidId(data.id)
+        && data.actorUid is string && data.actorUid.size() <= 128
+        && data.actorName is string && data.actorName.size() <= 120
+        && data.actorRole in ['admin', 'interviewer', 'analyst']
+        && data.action is string && data.action.size() <= 64
+        && data.targetType is string && data.targetType.size() <= 64
+        && data.targetId is string && data.targetId.size() <= 128
+        && data.details is string && data.details.size() <= 1000
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidExportLog(data) {
+      return data.keys().hasAll(['id', 'actorUid', 'actorName', 'format', 'recordCount', 'filterSummary', 'createdAt'])
+        && data.keys().hasOnly(['id', 'actorUid', 'actorName', 'format', 'recordCount', 'filterSummary', 'createdAt'])
+        && isValidId(data.id)
+        && data.actorUid is string && data.actorUid.size() <= 128
+        && data.actorName is string && data.actorName.size() <= 120
+        && data.format in ['csv', 'xlsx']
+        && data.recordCount is int && data.recordCount >= 0
+        && data.filterSummary is string && data.filterSummary.size() <= 500
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidAggregateMetric(data) {
+      return data.keys().hasAll(['totalResponses', 'targetSampleSize', 'updatedAt'])
+        && data.keys().hasOnly(['totalResponses', 'targetSampleSize', 'completionRate', 'safetyFlagCount', 'unpreparedCount', 'preparedCount', 'meanPreparedness', 'meanStrain', 'siteCounts', 'interviewerCounts', 'dailyCounts', 'updatedAt'])
+        && data.totalResponses is int && data.totalResponses >= 0
+        && data.targetSampleSize is int && data.targetSampleSize >= 30
+        && (!('completionRate' in data.keys()) || data.completionRate is number)
+        && (!('safetyFlagCount' in data.keys()) || data.safetyFlagCount is int)
+        && (!('unpreparedCount' in data.keys()) || data.unpreparedCount is int)
+        && (!('preparedCount' in data.keys()) || data.preparedCount is int)
+        && (!('meanPreparedness' in data.keys()) || data.meanPreparedness is number)
+        && (!('meanStrain' in data.keys()) || data.meanStrain is number)
+        && (!('siteCounts' in data.keys()) || data.siteCounts is map)
+        && (!('interviewerCounts' in data.keys()) || data.interviewerCounts is map)
+        && (!('dailyCounts' in data.keys()) || data.dailyCounts is map)
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidSharedReport(data) {
+      return data.keys().hasAll(['token', 'title', 'createdByUid', 'createdByName', 'snapshotData', 'revoked', 'createdAt'])
+        && data.keys().hasOnly(['token', 'title', 'createdByUid', 'createdByName', 'filters', 'snapshotData', 'revoked', 'createdAt'])
+        && isValidId(data.token)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.createdByUid is string && data.createdByUid.size() <= 128
+        && data.createdByName is string && data.createdByName.size() <= 120
+        && (!('filters' in data.keys()) || data.filters is map)
+        && data.snapshotData is map
+        && data.revoked is bool
+        && data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isSignedIn() && isValidUser(incoming()) && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && incoming().uid == request.auth.uid
+          && incoming().email == request.auth.token.email
+          && (
+            (isBootstrappedAdmin() && incoming().role == 'admin') ||
+            (exists(/databases/$(database)/documents/teamInvites/$(request.auth.token.email))
+              && incoming().role == get(/databases/$(database)/documents/teamInvites/$(request.auth.token.email)).data.role) ||
+            incoming().role == 'interviewer'
+          ))
+      );
+      allow update: if isValidId(userId) && isSignedIn() && isValidUser(incoming()) && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && incoming().uid == existing().uid
+          && incoming().email == existing().email
+          && incoming().role == existing().role
+          && incoming().active == existing().active
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'twoFactorEnabled', 'updatedAt']))
+      );
+      allow delete: if false;
+    }
+
+    match /userDirectory/{userId} {
+      allow get: if isValidId(userId) && isActiveTeamMember();
+      allow list: if isActiveTeamMember();
+      allow create: if isValidId(userId) && isSignedIn() && isValidUserDirectory(incoming()) && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && incoming().uid == request.auth.uid
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && incoming().role == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          && incoming().active == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active)
+      );
+      allow update: if isValidId(userId) && isSignedIn() && isValidUserDirectory(incoming()) && (
+        isAdmin() ||
+        (request.auth.uid == userId
+          && incoming().uid == existing().uid
+          && incoming().role == existing().role
+          && incoming().active == existing().active
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']))
+      );
+      allow delete: if false;
+    }
+
+    match /teamInvites/{inviteId} {
+      allow get: if inviteId is string && inviteId.size() <= 254 && isSignedIn() && (isAdmin() || request.auth.token.email == inviteId);
+      allow list: if isAdmin();
+      allow create, update: if inviteId is string && inviteId.size() <= 254 && isAdmin() && isValidTeamInvite(incoming());
+      allow delete: if inviteId is string && inviteId.size() <= 254 && isAdmin();
+    }
+
+    match /sites/{siteId} {
+      allow get: if isValidId(siteId) && isActiveTeamMember();
+      allow list: if isActiveTeamMember();
+      allow create, update: if isValidId(siteId) && isAdmin() && isValidSite(incoming());
+      allow delete: if false;
+    }
+
+    match /questionnaireVersions/{versionId} {
+      allow get: if isValidId(versionId) && isActiveTeamMember();
+      allow list: if isActiveTeamMember();
+      allow create, update: if isValidId(versionId) && isAdmin() && isValidQuestionnaireVersion(incoming());
+      allow delete: if false;
+    }
+
+    match /studyConfig/{configId} {
+      allow get: if isValidId(configId) && isActiveTeamMember();
+      allow list: if isActiveTeamMember();
+      allow create, update: if isValidId(configId) && isAdmin() && isValidStudyConfig(incoming());
+      allow delete: if false;
+    }
+
+    match /responses/{responseId} {
+      allow get: if isValidId(responseId) && (isAdmin() || isAnalyst() || (isActiveTeamMember() && resource.data.interviewerUid == request.auth.uid));
+      allow list: if isAdmin() || isAnalyst() || (isActiveTeamMember() && resource.data.interviewerUid == request.auth.uid);
+      allow create: if isValidId(responseId)
+        && isActiveTeamMember()
+        && isValidResponse(incoming())
+        && incoming().id == responseId
+        && (isAdmin() || incoming().interviewerUid == request.auth.uid)
+        && incoming().softDeleted == false
+        && incoming().deleteApprovalStatus == 'none'
+        && exists(/databases/$(database)/documents/sites/$(incoming().siteId));
+      allow update: if isValidId(responseId) && isValidResponse(incoming()) && (
+        (isAdmin()
+          && incoming().id == existing().id
+          && incoming().createdAt == existing().createdAt) ||
+        (isActiveTeamMember()
+          && existing().interviewerUid == request.auth.uid
+          && existing().softDeleted == false
+          && incoming().id == existing().id
+          && incoming().respondentCode == existing().respondentCode
+          && incoming().siteId == existing().siteId
+          && incoming().questionnaireVersionId == existing().questionnaireVersionId
+          && incoming().questionnaireVersion == existing().questionnaireVersion
+          && incoming().interviewerUid == existing().interviewerUid
+          && incoming().createdAt == existing().createdAt
+          && incoming().softDeleted == false
+          && incoming().deleteApprovalStatus in ['none', 'pending']
+          && incoming().diff(existing()).affectedKeys().hasOnly(['answers', 'derivedScores', 'safetyFlagged', 'completionStatus', 'respondentAge', 'guardianConsentConfirmed', 'editHistory', 'deleteApprovalStatus', 'deleteReason', 'updatedAt', 'syncedAt']))
+      );
+      allow delete: if false;
+    }
+
+    match /responseTags/{responseId} {
+      allow get: if isValidId(responseId) && (isAdmin() || isAnalyst());
+      allow list: if isAdmin() || isAnalyst();
+      allow create, update: if isValidId(responseId) && (isAdmin() || isAnalyst()) && isValidResponseTag(incoming());
+      allow delete: if false;
+    }
+
+    match /safetyFlags/{flagId} {
+      allow get: if isValidId(flagId) && (isAdmin() || (isActiveTeamMember() && resource.data.interviewerUid == request.auth.uid));
+      allow list: if isAdmin() || (isActiveTeamMember() && resource.data.interviewerUid == request.auth.uid);
+      allow create: if isValidId(flagId)
+        && isActiveTeamMember()
+        && isValidSafetyFlag(incoming())
+        && incoming().interviewerUid == request.auth.uid
+        && incoming().status == 'open';
+      allow update: if isValidId(flagId)
+        && isAdmin()
+        && isValidSafetyFlag(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acknowledgedByUid', 'acknowledgedByName', 'notes', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && (isAdmin() || isAnalyst());
+      allow list: if isAdmin() || isAnalyst();
+      allow create: if isValidId(logId)
+        && isActiveTeamMember()
+        && isValidAuditLog(incoming())
+        && incoming().actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /exports/{exportId} {
+      allow get: if isValidId(exportId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(exportId)
+        && isAdmin()
+        && isValidExportLog(incoming())
+        && incoming().actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /aggregateMetrics/{metricId} {
+      allow get: if isValidId(metricId) && isActiveTeamMember();
+      allow list: if isActiveTeamMember();
+      allow create, update: if isValidId(metricId) && isActiveTeamMember() && isValidAggregateMetric(incoming());
+      allow delete: if false;
+    }
+
+    match /sharedReports/{token} {
+      allow get: if isValidId(token) && (isAdmin() || resource.data.revoked == false);
+      allow list: if isAdmin();
+      allow create, update: if isValidId(token) && isAdmin() && isValidSharedReport(incoming());
+      allow delete: if false;
+    }
+  }
+}

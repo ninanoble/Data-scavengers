@@ -1,0 +1,8 @@
+{
+  "name": "Remix Data Scavengers",
+  "description": "Matrescence and maternal readiness research platform for community health data collection, safety referral, and statistical analysis in Rwanda.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

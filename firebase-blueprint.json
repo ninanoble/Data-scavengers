@@ -1,0 +1,295 @@
+{
+  "entities": {
+    "User": {
+      "title": "Team Member",
+      "description": "Authenticated research team member with assigned role and health centre site.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "interviewer", "analyst"] },
+        "assignedSiteId": { "type": "string", "maxLength": 128 },
+        "active": { "type": "boolean" },
+        "twoFactorEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "active", "createdAt", "updatedAt"]
+    },
+    "UserDirectory": {
+      "title": "Non-PII Team Directory",
+      "description": "Public-to-team directory of team member display names and roles without email PII.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "interviewer", "analyst"] },
+        "assignedSiteId": { "type": "string", "maxLength": 128 },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "active", "updatedAt"]
+    },
+    "TeamInvite": {
+      "title": "Team Invite",
+      "description": "Pre-assigned role and site for invited student researchers.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["admin", "interviewer", "analyst"] },
+        "assignedSiteId": { "type": "string", "maxLength": 128 },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "displayName", "role", "createdByUid", "createdAt"]
+    },
+    "Site": {
+      "title": "Health Centre Site",
+      "description": "Managed Rwanda health centre with configurable same-day mental health referral protocol.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "district": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "urbanRural": { "type": "string", "enum": ["urban", "peri-urban", "rural"] },
+        "referralContactName": { "type": "string", "maxLength": 160 },
+        "referralContactPhone": { "type": "string", "maxLength": 64 },
+        "referralProtocolEn": { "type": "string", "maxLength": 2000 },
+        "referralProtocolRw": { "type": "string", "maxLength": 2000 },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "district", "urbanRural", "referralContactName", "referralProtocolEn", "active", "createdAt", "updatedAt"]
+    },
+    "QuestionnaireVersion": {
+      "title": "Questionnaire Version",
+      "description": "Versioned dynamic questionnaire with multilingual sections, conditional logic, and validated scale slots.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "version": { "type": "integer" },
+        "titleEn": { "type": "string", "maxLength": 200 },
+        "titleRw": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "sections": { "type": "array" },
+        "questions": { "type": "array" },
+        "licensedScaleSlots": { "type": "array" },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdByName": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "version", "titleEn", "status", "sections", "questions", "createdByUid", "createdAt", "updatedAt"]
+    },
+    "StudyConfig": {
+      "title": "Study Configuration",
+      "description": "Scoring cutoffs, lock status, target sample size, and data retention policy.",
+      "type": "object",
+      "properties": {
+        "targetSampleSize": { "type": "integer" },
+        "preparednessCutoff": { "type": "number" },
+        "strainCutoff": { "type": "number" },
+        "cutoffsLocked": { "type": "boolean" },
+        "cutoffChangeLog": { "type": "array" },
+        "dataRetentionDays": { "type": "integer" },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetSampleSize", "preparednessCutoff", "strainCutoff", "cutoffsLocked", "dataRetentionDays", "updatedAt"]
+    },
+    "Response": {
+      "title": "De-Identified Interview Response",
+      "description": "De-identified maternal readiness interview record with derived scores and edit history. Never contains mother PII.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "respondentCode": { "type": "string", "maxLength": 32, "pattern": "^DS-[0-9A-Za-z\\-]+$" },
+        "siteId": { "type": "string", "maxLength": 128 },
+        "siteName": { "type": "string", "maxLength": 160 },
+        "interviewerUid": { "type": "string", "maxLength": 128 },
+        "interviewerName": { "type": "string", "maxLength": 120 },
+        "questionnaireVersionId": { "type": "string", "maxLength": 128 },
+        "questionnaireVersion": { "type": "integer" },
+        "language": { "type": "string", "enum": ["en", "rw"] },
+        "consentConfirmed": { "type": "boolean" },
+        "respondentAge": { "type": "integer" },
+        "guardianConsentConfirmed": { "type": "boolean" },
+        "answers": { "type": "object" },
+        "derivedScores": { "type": "object" },
+        "safetyFlagged": { "type": "boolean" },
+        "durationSeconds": { "type": "integer" },
+        "completionStatus": { "type": "string", "enum": ["complete", "partial"] },
+        "softDeleted": { "type": "boolean" },
+        "deleteApprovalStatus": { "type": "string", "enum": ["none", "pending", "approved"] },
+        "deleteReason": { "type": "string", "maxLength": 500 },
+        "editHistory": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "syncedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "respondentCode", "siteId", "siteName", "interviewerUid", "interviewerName", "questionnaireVersionId", "questionnaireVersion", "language", "consentConfirmed", "answers", "derivedScores", "safetyFlagged", "durationSeconds", "completionStatus", "softDeleted", "deleteApprovalStatus", "createdAt", "updatedAt"]
+    },
+    "ResponseTag": {
+      "title": "Qualitative Theme Tag",
+      "description": "Manual and AI-assisted qualitative theme annotations for open-ended responses.",
+      "type": "object",
+      "properties": {
+        "responseId": { "type": "string", "maxLength": 128 },
+        "themes": { "type": "array" },
+        "aiSuggestedThemes": { "type": "array" },
+        "aiReviewStatus": { "type": "string", "enum": ["none", "pending_review", "approved", "edited"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "taggedByUid": { "type": "string", "maxLength": 128 },
+        "taggedByName": { "type": "string", "maxLength": 120 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["responseId", "themes", "taggedByUid", "updatedAt"]
+    },
+    "SafetyFlag": {
+      "title": "Safety Referral Flag",
+      "description": "De-identified urgent same-day referral flag triggered when self-harm thought is reported.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "responseId": { "type": "string", "maxLength": 128 },
+        "respondentCode": { "type": "string", "maxLength": 32 },
+        "siteId": { "type": "string", "maxLength": 128 },
+        "siteName": { "type": "string", "maxLength": 160 },
+        "interviewerUid": { "type": "string", "maxLength": 128 },
+        "interviewerName": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["open", "acknowledged", "referred"] },
+        "acknowledgedByUid": { "type": "string", "maxLength": 128 },
+        "acknowledgedByName": { "type": "string", "maxLength": 120 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "responseId", "respondentCode", "siteId", "siteName", "interviewerUid", "interviewerName", "status", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log Entry",
+      "description": "Immutable attribution record for creations, edits, deletions, exports, and configuration updates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorName": { "type": "string", "maxLength": 120 },
+        "actorRole": { "type": "string", "enum": ["admin", "interviewer", "analyst"] },
+        "action": { "type": "string", "maxLength": 64 },
+        "targetType": { "type": "string", "maxLength": 64 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "actorName", "actorRole", "action", "targetType", "targetId", "details", "createdAt"]
+    },
+    "ExportLog": {
+      "title": "Data Export Log",
+      "description": "Admin-only record of every de-identified CSV or XLSX data export.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorName": { "type": "string", "maxLength": 120 },
+        "format": { "type": "string", "enum": ["csv", "xlsx"] },
+        "recordCount": { "type": "integer" },
+        "filterSummary": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorUid", "actorName", "format", "recordCount", "filterSummary", "createdAt"]
+    },
+    "AggregateMetric": {
+      "title": "Aggregate Dashboard Snapshot",
+      "description": "De-identified aggregate summary metrics readable by interviewers without accessing raw responses.",
+      "type": "object",
+      "properties": {
+        "totalResponses": { "type": "integer" },
+        "targetSampleSize": { "type": "integer" },
+        "completionRate": { "type": "number" },
+        "safetyFlagCount": { "type": "integer" },
+        "unpreparedCount": { "type": "integer" },
+        "preparedCount": { "type": "integer" },
+        "meanPreparedness": { "type": "number" },
+        "meanStrain": { "type": "number" },
+        "siteCounts": { "type": "object" },
+        "interviewerCounts": { "type": "object" },
+        "dailyCounts": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["totalResponses", "targetSampleSize", "updatedAt"]
+    },
+    "SharedReport": {
+      "title": "Shareable Read-Only Aggregate Report",
+      "description": "Token-protected read-only snapshot of aggregate study results created by the research lead.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 200 },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdByName": { "type": "string", "maxLength": 120 },
+        "filters": { "type": "object" },
+        "snapshotData": { "type": "object" },
+        "revoked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["token", "title", "createdByUid", "createdByName", "snapshotData", "revoked", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Private team member account documents containing email and RBAC role."
+    },
+    "/userDirectory/{userId}": {
+      "schema": { "$ref": "#/entities/UserDirectory" },
+      "description": "Team-readable non-PII directory for attribution."
+    },
+    "/teamInvites/{inviteId}": {
+      "schema": { "$ref": "#/entities/TeamInvite" },
+      "description": "Pre-registered team invites managed by Admin."
+    },
+    "/sites/{siteId}": {
+      "schema": { "$ref": "#/entities/Site" },
+      "description": "Managed Rwanda health centre sites and referral protocols."
+    },
+    "/questionnaireVersions/{versionId}": {
+      "schema": { "$ref": "#/entities/QuestionnaireVersion" },
+      "description": "Versioned questionnaire definitions."
+    },
+    "/studyConfig/{configId}": {
+      "schema": { "$ref": "#/entities/StudyConfig" },
+      "description": "Study configuration, target N, and locked cutoff parameters."
+    },
+    "/responses/{responseId}": {
+      "schema": { "$ref": "#/entities/Response" },
+      "description": "De-identified interview responses keyed by client UUID for idempotent offline sync."
+    },
+    "/responseTags/{responseId}": {
+      "schema": { "$ref": "#/entities/ResponseTag" },
+      "description": "Qualitative theme annotations managed by Analysts and Admins."
+    },
+    "/safetyFlags/{flagId}": {
+      "schema": { "$ref": "#/entities/SafetyFlag" },
+      "description": "De-identified same-day referral flags for self-harm disclosures."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only attribution log."
+    },
+    "/exports/{exportId}": {
+      "schema": { "$ref": "#/entities/ExportLog" },
+      "description": "Admin-only export audit log."
+    },
+    "/aggregateMetrics/{metricId}": {
+      "schema": { "$ref": "#/entities/AggregateMetric" },
+      "description": "Aggregate study summary readable by all active team members."
+    },
+    "/sharedReports/{token}": {
+      "schema": { "$ref": "#/entities/SharedReport" },
+      "description": "Read-only shareable aggregate report snapshots."
+    }
+  }
+}
